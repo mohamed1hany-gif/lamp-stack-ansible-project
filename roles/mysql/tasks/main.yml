@@ -1,0 +1,83 @@
+- name: Install pip3
+  apt:
+    name: python3-pip
+    state: present
+    update_cache: yes
+
+- name: Install PyMySQL for Ansible MySQL modules
+  pip:
+    name: PyMySQL
+    executable: pip3
+    extra_args: --break-system-packages
+
+- name: Install MySQL Server
+  apt:
+    name: mysql-server
+    state: present
+    update_cache: yes
+
+- name: Start and enable MySQL
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+
+- name: Update expired MySQL root password using shell (fallback)
+  shell: |
+    mysql -u root --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';"
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+
+- name: Force reset MySQL root password if expired
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    query: "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';"
+  ignore_errors: true
+
+- name: Reset MySQL root password on first login
+  mysql_user:
+    name: root
+    host: localhost
+    password: "{{ mysql_root_password }}"
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: true
+    update_password: always
+  no_log: true
+
+- name: Change MySQL root auth plugin to mysql_native_password
+  mysql_user:
+    name: root
+    host: localhost
+    plugin: mysql_native_password
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    state: present
+
+- name: Set MySQL root password
+  mysql_user:
+    name: root
+    host_all: yes
+    password: "{{ mysql_root_password }}"
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Remove anonymous MySQL users
+  mysql_user:
+    name: ''
+    host_all: yes
+    state: absent
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Remove test database
+  mysql_db:
+    name: test
+    state: absent
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock

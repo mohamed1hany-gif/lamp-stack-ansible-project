@@ -1,0 +1,26 @@
+- name: Install Apache
+  apt:
+    name: apache2
+    state: present
+    update_cache: yes
+
+- name: Deploy index.php
+  template:
+    src: index.php.j2
+    dest: /var/www/html/index.php
+    mode: '0644'
+  notify: Restart Apache
+
+- block:
+    - name: Ensure Apache is started and enabled
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+  rescue:
+    - debug:
+        msg: "Apache failed to start"
+  always:
+    - debug:
+        msg: "Apache setup block completed"
+  
