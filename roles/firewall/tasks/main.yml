@@ -29,3 +29,11 @@
 - name: Enable UFW
   ufw:
     state: enabled
+
+- name: Verify UFW status and rules
+  shell: ufw status verbose
+  register: ufw_status
+
+- name: Show UFW status output
+  debug:
+    var: ufw_status.stdout
